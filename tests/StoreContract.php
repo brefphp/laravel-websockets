@@ -25,8 +25,7 @@ trait StoreContract
 
         $this->assertSame(['conn-1', 'conn-2'], $this->connectionIds($store->subscribers('news')));
         $this->assertSame(['news', 'sports'], $this->channels($store->subscriptionsOf('conn-1')));
-        $this->assertTrue($store->isSubscribed('news', 'conn-2'));
-        $this->assertFalse($store->isSubscribed('sports', 'conn-2'));
+        $this->assertSame(['conn-1'], $this->connectionIds($store->subscribers('sports')));
     }
 
     #[Test]
@@ -73,7 +72,6 @@ trait StoreContract
 
         $this->assertSame(['conn-A', 'conn-a'], $this->connectionIds($store->subscribers('private-orders.abc')));
         $this->assertSame([], $store->subscribers('private-orders.ABC'));
-        $this->assertFalse($store->isSubscribed('private-orders.ABC', 'conn-A'));
     }
 
     /**

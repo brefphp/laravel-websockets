@@ -12,16 +12,9 @@ return [
     // Where channel subscriptions are stored: "database" or "dynamodb"
     'store' => env('BREF_WEBSOCKET_STORE', 'database'),
 
-    'database' => [
-        // The application's default connection when null
-        'connection' => env('BREF_WEBSOCKET_DB_CONNECTION'),
-        'table' => 'websocket_subscriptions',
-    ],
-
+    // The table, with the "dynamodb" store
     'dynamodb' => [
         'table' => env('BREF_WEBSOCKET_DYNAMODB_TABLE'),
-        // For tests against DynamoDB Local
-        'endpoint' => env('BREF_WEBSOCKET_DYNAMODB_ENDPOINT'),
     ],
 
     // Hosts that can open a connection, with wildcards, e.g. "example.com,*.example.com"

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Bref\LaravelWebsockets\Test;
 
 use Bref\LaravelWebsockets\Connections;
-use Bref\LaravelWebsockets\SendResult;
+use Illuminate\Broadcasting\BroadcastException;
 
 class FakeConnections extends Connections
 {
@@ -20,7 +20,7 @@ class FakeConnections extends Connections
 
     public function __construct() {}
 
-    public function send(array $connectionIds, string $message): SendResult
+    public function send(array $connectionIds, string $message): array
     {
         $gone = array_values(array_intersect($connectionIds, $this->gone));
         $failed = array_values(array_intersect($connectionIds, $this->failing));
@@ -31,7 +31,11 @@ class FakeConnections extends Connections
             $this->sent[] = ['connectionId' => $connectionId, 'message' => $decoded];
         }
 
-        return new SendResult(count($connectionIds), $gone, $failed);
+        if ($failed !== [] && count($failed) === count($connectionIds)) {
+            throw new BroadcastException('No connection could be reached');
+        }
+
+        return $gone;
     }
 
     /**

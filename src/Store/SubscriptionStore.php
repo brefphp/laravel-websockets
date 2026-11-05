@@ -13,8 +13,6 @@ interface SubscriptionStore
 
     public function unsubscribe(string $channel, string $connectionId): void;
 
-    public function isSubscribed(string $channel, string $connectionId): bool;
-
     /**
      * @return list<Subscription>
      */

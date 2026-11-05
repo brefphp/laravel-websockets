@@ -90,12 +90,7 @@ class ApiGatewayBroadcaster extends Broadcaster
                 throw new BroadcastException('Encrypted private channels are not supported.');
             }
 
-            $result = $this->publisher->publish($channel, $event, $data, is_string($socket) ? $socket : null);
-
-            // Most likely a configuration problem, like missing IAM permissions
-            if ($result->failed !== [] && count($result->failed) === $result->total) {
-                throw new BroadcastException(sprintf('Could not send the "%s" event to any connection of the "%s" channel, see the logs.', $event, $channel));
-            }
+            $this->publisher->publish($channel, $event, $data, is_string($socket) ? $socket : null);
         }
     }
 }

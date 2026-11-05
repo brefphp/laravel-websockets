@@ -97,7 +97,7 @@ class Handler extends WebsocketHandler
 
         for ($attempt = 1; $attempt <= self::ESTABLISH_ATTEMPTS; $attempt++) {
             // Gone until $connect has returned, or forever if the client has already left
-            if ($this->connections->send([$connectionId], $message)->gone === []) {
+            if ($this->connections->send([$connectionId], $message) === []) {
                 return;
             }
 
@@ -220,13 +220,15 @@ class Handler extends WebsocketHandler
      */
     private function clientEvent(string $connectionId, string $event, string $channel, mixed $data): void
     {
-        if (! $this->isGuarded($channel) || ! $this->store->isSubscribed($channel, $connectionId)) {
+        $subscribers = $this->isGuarded($channel) ? $this->store->subscribers($channel) : [];
+
+        if (! in_array($connectionId, array_column($subscribers, 'connectionId'), true)) {
             $this->sendError($connectionId, 4301, 'Client events require joining a private or presence channel');
 
             return;
         }
 
-        $this->publisher->publish($channel, $event, $data, $connectionId);
+        $this->publisher->publishTo($subscribers, $channel, $event, $data, $connectionId);
     }
 
     private function isOriginAllowed(WebsocketEvent $event): bool

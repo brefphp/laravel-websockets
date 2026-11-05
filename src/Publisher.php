@@ -17,15 +17,15 @@ class Publisher
         private readonly Connections $connections,
     ) {}
 
-    public function publish(string $channel, string $event, mixed $data, ?string $exceptConnectionId = null): SendResult
+    public function publish(string $channel, string $event, mixed $data, ?string $exceptConnectionId = null): void
     {
-        return $this->publishTo($this->store->subscribers($channel), $channel, $event, $data, $exceptConnectionId);
+        $this->publishTo($this->store->subscribers($channel), $channel, $event, $data, $exceptConnectionId);
     }
 
     /**
      * @param  list<Subscription>  $subscribers
      */
-    public function publishTo(array $subscribers, string $channel, string $event, mixed $data, ?string $exceptConnectionId = null): SendResult
+    public function publishTo(array $subscribers, string $channel, string $event, mixed $data, ?string $exceptConnectionId = null): void
     {
         $connectionIds = [];
 
@@ -37,13 +37,9 @@ class Publisher
 
         $message = json_encode(['event' => $event, 'channel' => $channel, 'data' => $data], JSON_THROW_ON_ERROR);
 
-        $result = $this->connections->send($connectionIds, $message);
-
         // $disconnect is not guaranteed: this is what removes the connections it missed
-        foreach ($result->gone as $connectionId) {
-            $this->store->unsubscribe($channel, $connectionId);
+        foreach ($this->connections->send($connectionIds, $message) as $goneConnectionId) {
+            $this->store->unsubscribe($channel, $goneConnectionId);
         }
-
-        return $result;
     }
 }

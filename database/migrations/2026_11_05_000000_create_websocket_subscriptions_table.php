@@ -8,19 +8,12 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function getConnection(): ?string
-    {
-        return config('bref-websockets.database.connection');
-    }
-
     public function up(): void
     {
-        $schema = Schema::connection($this->getConnection());
-
         // Channels and connection IDs are case-sensitive, MySQL's default collations are not
-        $caseSensitive = in_array($schema->getConnection()->getDriverName(), ['mysql', 'mariadb'], true);
+        $caseSensitive = in_array(Schema::getConnection()->getDriverName(), ['mysql', 'mariadb'], true);
 
-        $schema->create(config('bref-websockets.database.table'), function (Blueprint $table) use ($caseSensitive) {
+        Schema::create('websocket_subscriptions', function (Blueprint $table) use ($caseSensitive) {
             $channel = $table->string('channel', 191);
             $connectionId = $table->string('connection_id', 64);
 
@@ -39,6 +32,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::connection($this->getConnection())->dropIfExists(config('bref-websockets.database.table'));
+        Schema::dropIfExists('websocket_subscriptions');
     }
 };

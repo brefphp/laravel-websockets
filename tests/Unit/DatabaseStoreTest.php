@@ -18,14 +18,13 @@ class DatabaseStoreTest extends TestCase
     #[Test]
     public function expired_subscriptions_are_ignored_and_pruned(): void
     {
-        $store = new DatabaseStore(DB::connection(), 'websocket_subscriptions');
+        $store = new DatabaseStore(DB::connection());
         $store->subscribe('news', 'conn-1');
         DB::table('websocket_subscriptions')->update(['expires_at' => time() - 1]);
         $store->subscribe('news', 'conn-2');
 
         $this->assertSame('conn-2', $store->subscribers('news')[0]->connectionId);
         $this->assertCount(1, $store->subscribers('news'));
-        $this->assertFalse($store->isSubscribed('news', 'conn-1'));
 
         $store->prune();
 

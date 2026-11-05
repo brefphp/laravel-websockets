@@ -40,16 +40,6 @@ class DynamoDbStore implements SubscriptionStore
         ])->resolve();
     }
 
-    public function isSubscribed(string $channel, string $connectionId): bool
-    {
-        $item = $this->client->getItem([
-            'TableName' => $this->table,
-            'Key' => ['channel' => ['S' => $channel], 'connectionId' => ['S' => $connectionId]],
-        ])->getItem();
-
-        return isset($item['expiresAt']) && (int) $item['expiresAt']->getN() > time();
-    }
-
     public function subscribers(string $channel): array
     {
         return $this->subscriptions($this->client->query([

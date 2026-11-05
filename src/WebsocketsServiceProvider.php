@@ -31,8 +31,11 @@ class WebsocketsServiceProvider extends ServiceProvider
         }
 
         $this->app->singleton(SubscriptionStore::class, fn() => match ($this->config()->string('bref-websockets.store')) {
-            'database' => $this->databaseStore(),
-            'dynamodb' => $this->dynamoDbStore(),
+            'database' => new DatabaseStore($this->app->make(DatabaseManager::class)->connection()),
+            'dynamodb' => new DynamoDbStore(
+                new DynamoDbClient(['region' => $this->config()->string('bref-websockets.region')]),
+                $this->config()->string('bref-websockets.dynamodb.table'),
+            ),
             default => throw new InvalidArgumentException('BREF_WEBSOCKET_STORE must be "database" or "dynamodb".'),
         });
 
@@ -41,13 +44,10 @@ class WebsocketsServiceProvider extends ServiceProvider
             $apiId = $this->config()->string('bref-websockets.api_id');
 
             return new Connections(
-                new ApiGatewayClient(
-                    ['region' => $region, 'endpoint' => "https://{$apiId}.execute-api.{$region}.amazonaws.com"],
-                    null,
-                    // Retries when API Gateway throttles, but not on 410 (connection gone)
-                    AwsHttpClientFactory::createRetryableClient(HttpClient::create(['timeout' => 10], 100)),
-                ),
                 $this->config()->string('bref-websockets.stage'),
+                ['region' => $region, 'endpoint' => "https://{$apiId}.execute-api.{$region}.amazonaws.com"],
+                // Retries when API Gateway throttles, but not on 410 (connection gone)
+                AwsHttpClientFactory::createRetryableClient(HttpClient::create(['timeout' => 10], 100)),
             );
         });
 
@@ -83,28 +83,6 @@ class WebsocketsServiceProvider extends ServiceProvider
                 $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
             }
         }
-    }
-
-    private function databaseStore(): DatabaseStore
-    {
-        $connection = $this->config()->get('bref-websockets.database.connection');
-
-        return new DatabaseStore(
-            $this->app->make(DatabaseManager::class)->connection(is_string($connection) ? $connection : null),
-            $this->config()->string('bref-websockets.database.table'),
-        );
-    }
-
-    private function dynamoDbStore(): DynamoDbStore
-    {
-        $endpoint = $this->config()->get('bref-websockets.dynamodb.endpoint');
-        $options = ['region' => $this->config()->string('bref-websockets.region')];
-
-        if (is_string($endpoint)) {
-            $options['endpoint'] = $endpoint;
-        }
-
-        return new DynamoDbStore(new DynamoDbClient($options), $this->config()->string('bref-websockets.dynamodb.table'));
     }
 
     private function config(): Repository

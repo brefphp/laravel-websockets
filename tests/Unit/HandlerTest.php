@@ -96,7 +96,7 @@ class HandlerTest extends TestCase
     {
         $this->message('conn-1', ['event' => 'pusher:subscribe', 'data' => ['channel' => 'news.1']]);
 
-        $this->assertTrue($this->store->isSubscribed('news.1', 'conn-1'));
+        $this->assertContains('conn-1', $this->subscribersOf('news.1'));
         $this->assertSame([
             'event' => 'pusher_internal:subscription_succeeded',
             'channel' => 'news.1',
@@ -130,7 +130,7 @@ class HandlerTest extends TestCase
             $this->message('conn-1', ['event' => 'pusher:subscribe', 'data' => array_filter(['channel' => 'private-orders.1', 'auth' => $auth])]);
         }
 
-        $this->assertFalse($this->store->isSubscribed('private-orders.1', 'conn-1'));
+        $this->assertNotContains('conn-1', $this->subscribersOf('private-orders.1'));
         foreach ($this->connections->sentTo('conn-1') as $sent) {
             $this->assertSame('pusher:error', $sent['event']);
         }
@@ -140,7 +140,7 @@ class HandlerTest extends TestCase
             'auth' => $this->signature->sign('conn-1', 'private-orders.1'),
         ]]);
 
-        $this->assertTrue($this->store->isSubscribed('private-orders.1', 'conn-1'));
+        $this->assertContains('conn-1', $this->subscribersOf('private-orders.1'));
     }
 
     #[Test]
@@ -154,7 +154,7 @@ class HandlerTest extends TestCase
             'channel_data' => '{"user_id":2,"user_info":{"name":"Bob"}}',
         ]]);
 
-        $this->assertFalse($this->store->isSubscribed('presence-room.1', 'conn-1'));
+        $this->assertNotContains('conn-1', $this->subscribersOf('presence-room.1'));
     }
 
     #[Test]
@@ -213,8 +213,8 @@ class HandlerTest extends TestCase
 
         $this->message('conn-1', ['event' => 'pusher:unsubscribe', 'data' => ['channel' => 'news.1']]);
 
-        $this->assertFalse($this->store->isSubscribed('news.1', 'conn-1'));
-        $this->assertTrue($this->store->isSubscribed('news.2', 'conn-1'));
+        $this->assertNotContains('conn-1', $this->subscribersOf('news.1'));
+        $this->assertContains('conn-1', $this->subscribersOf('news.2'));
     }
 
     #[Test]

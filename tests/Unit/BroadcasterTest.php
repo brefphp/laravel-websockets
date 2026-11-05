@@ -65,8 +65,8 @@ class BroadcasterTest extends TestCase
 
         $this->broadcaster->broadcast([new Channel('news')], 'shipped');
 
-        $this->assertFalse($this->store->isSubscribed('news', 'dead'));
-        $this->assertTrue($this->store->isSubscribed('news', 'alive'));
+        $this->assertNotContains('dead', $this->subscribersOf('news'));
+        $this->assertContains('alive', $this->subscribersOf('news'));
     }
 
     #[Test]

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Bref\LaravelWebsockets\Test;
 
 use Bref\LaravelWebsockets\Connections;
+use Bref\LaravelWebsockets\Store\SubscriptionStore;
 use Bref\LaravelWebsockets\WebsocketsServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Orchestra\Testbench\TestCase as Orchestra;
@@ -21,6 +22,14 @@ abstract class TestCase extends Orchestra
 
         $this->connections = new FakeConnections;
         app()->instance(Connections::class, $this->connections);
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function subscribersOf(string $channel): array
+    {
+        return array_column(app(SubscriptionStore::class)->subscribers($channel), 'connectionId');
     }
 
     protected function getPackageProviders($app): array

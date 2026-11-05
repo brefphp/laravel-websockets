@@ -14,7 +14,6 @@ class DatabaseStore implements SubscriptionStore
 
     public function __construct(
         private readonly ConnectionInterface $connection,
-        private readonly string $table,
     ) {}
 
     public function subscribe(string $channel, string $connectionId, ?string $member = null): void
@@ -38,15 +37,6 @@ class DatabaseStore implements SubscriptionStore
     public function unsubscribe(string $channel, string $connectionId): void
     {
         $this->query()->where('channel', $channel)->where('connection_id', $connectionId)->delete();
-    }
-
-    public function isSubscribed(string $channel, string $connectionId): bool
-    {
-        return $this->query()
-            ->where('channel', $channel)
-            ->where('connection_id', $connectionId)
-            ->where('expires_at', '>', time())
-            ->exists();
     }
 
     public function subscribers(string $channel): array
@@ -81,6 +71,6 @@ class DatabaseStore implements SubscriptionStore
 
     private function query(): Builder
     {
-        return $this->connection->table($this->table);
+        return $this->connection->table('websocket_subscriptions');
     }
 }
