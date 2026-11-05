@@ -40,7 +40,7 @@ class HandlerTest extends TestCase
         $this->assertCount(1, $this->lambdaCalls);
         $this->assertStringContainsString('function%3Aws/invocations', $this->lambdaCalls[0]['url']);
         $this->assertSame('{"establish":"conn-1"}', $this->lambdaCalls[0]['body']);
-        $this->assertContains('X-Amz-Invocation-Type: Event', $this->lambdaCalls[0]['headers']);
+        $this->assertContains('x-amz-invocation-type: event', array_map(strtolower(...), $this->lambdaCalls[0]['headers']));
     }
 
     #[Test]

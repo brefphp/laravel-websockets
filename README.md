@@ -143,6 +143,8 @@ window.Echo = new Echo({
     wssPort: 443,
     forceTLS: true,
     enabledTransports: ['ws', 'wss'],
+    // Ping every 9 minutes instead of 2: each ping costs a Lambda invocation and 2 messages
+    activityTimeout: 540000,
 });
 ```
 
