@@ -1,0 +1,81 @@
+{
+    "name": "bref/laravel-websockets",
+    "description": "WebSockets for Laravel on AWS Lambda with Bref and API Gateway",
+    "keywords": ["laravel", "websockets", "broadcasting", "echo", "api-gateway", "aws", "lambda", "serverless", "bref"],
+    "license": "MIT",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Matthieu Napoli",
+            "email": "matthieu@mnapoli.fr"
+        }
+    ],
+    "funding": [
+        {
+            "type": "github",
+            "url": "https://github.com/sponsors/mnapoli"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Bref\\LaravelWebsockets\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Bref\\LaravelWebsockets\\Test\\": "tests/"
+        }
+    },
+    "require": {
+        "php": "^8.2",
+        "async-aws/core": "^1.27",
+        "async-aws/dynamo-db": "^3.0",
+        "async-aws/lambda": "^2.0",
+        "bref/bref": "^3.0",
+        "bref/laravel-bridge": "^3.1",
+        "illuminate/broadcasting": "^12.0 || ^13.0",
+        "illuminate/database": "^12.0 || ^13.0",
+        "illuminate/support": "^12.0 || ^13.0",
+        "symfony/http-client": "^6.4 || ^7.0 || ^8.0"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3",
+        "laravel/pint": "^1.24",
+        "orchestra/testbench": "^10.0 || ^11.0",
+        "phpstan/phpstan": "^2",
+        "phpstan/phpstan-phpunit": "^2",
+        "phpunit/phpunit": "^11.5 || ^12",
+        "rector/rector": "^2.0"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Bref\\LaravelWebsockets\\WebsocketsServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "lint": [
+            "pint --parallel",
+            "rector"
+        ],
+        "test:lint": [
+            "pint --parallel --test",
+            "rector --dry-run"
+        ],
+        "test:types": "phpstan",
+        "test:unit": "phpunit --testsuite=Unit",
+        "test:integration": "phpunit --testsuite=Integration",
+        "test": [
+            "@test:lint",
+            "@test:types",
+            "@test:unit"
+        ]
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": false
+        }
+    }
+}
