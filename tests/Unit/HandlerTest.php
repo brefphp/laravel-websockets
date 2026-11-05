@@ -10,8 +10,8 @@ use Bref\LaravelWebsockets\ChannelSignature;
 use Bref\LaravelWebsockets\Handler;
 use Bref\LaravelWebsockets\Publisher;
 use Bref\LaravelWebsockets\Store\SubscriptionStore;
+use Bref\LaravelWebsockets\Test\InterleavingStore;
 use Bref\LaravelWebsockets\Test\TestCase;
-use Closure;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -195,45 +195,9 @@ class HandlerTest extends TestCase
     {
         $alice = '{"user_id":1,"user_info":null}';
         $bob = '{"user_id":2,"user_info":null}';
-        $inner = $this->store;
-        $test = $this;
 
-        // Bob joins entirely while Alice's invocation is between its read and whatever comes next
-        $store = new class($inner, function () use ($test, $bob) {
-            $test->joinPresence('bob', $bob);
-        }) implements SubscriptionStore
-        {
-            private bool $interleaved = false;
-
-            public function __construct(private readonly SubscriptionStore $inner, private readonly Closure $interleave) {}
-
-            public function subscribe(string $channel, string $connectionId, ?string $member = null): void
-            {
-                $this->inner->subscribe($channel, $connectionId, $member);
-            }
-
-            public function unsubscribe(string $channel, string $connectionId): void
-            {
-                $this->inner->unsubscribe($channel, $connectionId);
-            }
-
-            public function subscribers(string $channel): array
-            {
-                $subscribers = $this->inner->subscribers($channel);
-
-                if (! $this->interleaved) {
-                    $this->interleaved = true;
-                    ($this->interleave)();
-                }
-
-                return $subscribers;
-            }
-
-            public function subscriptionsOf(string $connectionId): array
-            {
-                return $this->inner->subscriptionsOf($connectionId);
-            }
-        };
+        // Bob joins entirely right after Alice's invocation has read the subscribers
+        $store = new InterleavingStore($this->store, fn() => $this->joinPresence('bob', $bob));
 
         $handler = new Handler($store, $this->connections, new Publisher($store, $this->connections), $this->signature, $this->lambda(), ['*']);
         $handler->handle($this->event('alice', 'MESSAGE', '$default') + ['body' => json_encode(['event' => 'pusher:subscribe', 'data' => [
@@ -320,7 +284,7 @@ class HandlerTest extends TestCase
         $this->assertSame('pusher:error', $this->connections->sentTo('reader')[0]['event']);
     }
 
-    public function joinPresence(string $connectionId, string $channelData): void
+    private function joinPresence(string $connectionId, string $channelData): void
     {
         $this->message($connectionId, ['event' => 'pusher:subscribe', 'data' => [
             'channel' => 'presence-room.1',
