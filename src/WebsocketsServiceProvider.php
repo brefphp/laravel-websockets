@@ -26,7 +26,7 @@ class WebsocketsServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__ . '/../config/bref-websockets.php', 'bref-websockets');
 
         // So that BROADCAST_CONNECTION=api-gateway is all that users have to set
-        if (!$this->app instanceof CachesConfiguration || !$this->app->configurationIsCached()) {
+        if (! $this->app instanceof CachesConfiguration || ! $this->app->configurationIsCached()) {
             $this->config()->set('broadcasting.connections.api-gateway', ['driver' => 'api-gateway']);
         }
 
