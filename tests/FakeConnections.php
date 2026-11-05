@@ -18,10 +18,19 @@ class FakeConnections extends Connections
     /** @var list<string> */
     public array $failing = [];
 
+    public int $attempts = 0;
+    public int $goneForAttempts = 0;
+
     public function __construct() {}
 
     public function send(array $connectionIds, string $message): array
     {
+        $this->attempts++;
+
+        if ($this->attempts <= $this->goneForAttempts) {
+            return $connectionIds;
+        }
+
         $gone = array_values(array_intersect($connectionIds, $this->gone));
         $failed = array_values(array_intersect($connectionIds, $this->failing));
 

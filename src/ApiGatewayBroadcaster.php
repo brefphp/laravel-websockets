@@ -16,9 +16,6 @@ class ApiGatewayBroadcaster extends Broadcaster
 {
     use UsePusherChannelConventions;
 
-    // API Gateway refuses larger messages
-    private const MAX_MESSAGE_BYTES = 128 * 1024;
-
     public function __construct(
         private readonly Publisher $publisher,
         private readonly ChannelSignature $signature,
@@ -80,10 +77,6 @@ class ApiGatewayBroadcaster extends Broadcaster
     {
         $socket = Arr::pull($payload, 'socket');
         $data = json_encode($payload, JSON_THROW_ON_ERROR);
-
-        if (strlen($data) > self::MAX_MESSAGE_BYTES - 1024) {
-            throw new BroadcastException(sprintf('The "%s" event is too large for API Gateway: %d bytes.', $event, strlen($data)));
-        }
 
         foreach ($this->formatChannels($channels) as $channel) {
             if (str_starts_with($channel, 'private-encrypted-')) {

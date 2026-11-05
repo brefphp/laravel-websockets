@@ -11,6 +11,7 @@ use Bref\LaravelWebsockets\Handler;
 use Bref\LaravelWebsockets\Publisher;
 use Bref\LaravelWebsockets\Store\SubscriptionStore;
 use Bref\LaravelWebsockets\Test\TestCase;
+use Closure;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -54,11 +55,25 @@ class HandlerTest extends TestCase
     }
 
     #[Test]
+    public function the_hello_is_retried_until_connect_has_returned(): void
+    {
+        $this->connections->goneForAttempts = 3;
+
+        $this->handler()->handle(['establish' => 'conn-1'], $this->context());
+
+        $this->assertSame(4, $this->connections->attempts);
+        $this->assertCount(1, $this->connections->sentTo('conn-1'));
+    }
+
+    #[Test]
     public function the_hello_gives_up_when_the_client_has_left(): void
     {
         $this->connections->gone = ['conn-1'];
 
-        $this->assertNull($this->handler()->handle(['establish' => 'conn-1'], $this->context()));
+        $this->handler()->handle(['establish' => 'conn-1'], $this->context());
+
+        $this->assertSame(50, $this->connections->attempts);
+        $this->assertSame([], $this->connections->sentTo('conn-1'));
     }
 
     #[Test]
@@ -176,6 +191,62 @@ class HandlerTest extends TestCase
     }
 
     #[Test]
+    public function members_joining_at_the_same_time_see_each_other(): void
+    {
+        $alice = '{"user_id":1,"user_info":null}';
+        $bob = '{"user_id":2,"user_info":null}';
+        $inner = $this->store;
+        $test = $this;
+
+        // Bob joins entirely while Alice's invocation is between its read and whatever comes next
+        $store = new class($inner, function () use ($test, $bob) {
+            $test->joinPresence('bob', $bob);
+        }) implements SubscriptionStore
+        {
+            private bool $interleaved = false;
+
+            public function __construct(private readonly SubscriptionStore $inner, private readonly Closure $interleave) {}
+
+            public function subscribe(string $channel, string $connectionId, ?string $member = null): void
+            {
+                $this->inner->subscribe($channel, $connectionId, $member);
+            }
+
+            public function unsubscribe(string $channel, string $connectionId): void
+            {
+                $this->inner->unsubscribe($channel, $connectionId);
+            }
+
+            public function subscribers(string $channel): array
+            {
+                $subscribers = $this->inner->subscribers($channel);
+
+                if (! $this->interleaved) {
+                    $this->interleaved = true;
+                    ($this->interleave)();
+                }
+
+                return $subscribers;
+            }
+
+            public function subscriptionsOf(string $connectionId): array
+            {
+                return $this->inner->subscriptionsOf($connectionId);
+            }
+        };
+
+        $handler = new Handler($store, $this->connections, new Publisher($store, $this->connections), $this->signature, $this->lambda(), ['*']);
+        $handler->handle($this->event('alice', 'MESSAGE', '$default') + ['body' => json_encode(['event' => 'pusher:subscribe', 'data' => [
+            'channel' => 'presence-room.1',
+            'auth' => $this->signature->sign('alice', 'presence-room.1', $alice),
+            'channel_data' => $alice,
+        ]], JSON_THROW_ON_ERROR)], $this->context());
+
+        $this->assertContains('2', $this->membersKnownBy('alice'));
+        $this->assertContains('1', $this->membersKnownBy('bob'));
+    }
+
+    #[Test]
     public function a_second_connection_of_the_same_user_is_not_a_new_member(): void
     {
         $this->joinPresence('tab-1', '{"user_id":1,"user_info":null}');
@@ -249,13 +320,33 @@ class HandlerTest extends TestCase
         $this->assertSame('pusher:error', $this->connections->sentTo('reader')[0]['event']);
     }
 
-    private function joinPresence(string $connectionId, string $channelData): void
+    public function joinPresence(string $connectionId, string $channelData): void
     {
         $this->message($connectionId, ['event' => 'pusher:subscribe', 'data' => [
             'channel' => 'presence-room.1',
             'auth' => $this->signature->sign($connectionId, 'presence-room.1', $channelData),
             'channel_data' => $channelData,
         ]]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function membersKnownBy(string $connectionId): array
+    {
+        $members = [];
+
+        foreach ($this->connections->sentTo($connectionId) as $message) {
+            /** @var array{presence?: array{ids: list<string>}, user_id?: int} $data */
+            $data = json_decode(is_string($message['data']) ? $message['data'] : '{}', true);
+            array_push($members, ...($data['presence']['ids'] ?? []));
+
+            if (isset($data['user_id'])) {
+                $members[] = (string) $data['user_id'];
+            }
+        }
+
+        return $members;
     }
 
     /**
@@ -274,7 +365,12 @@ class HandlerTest extends TestCase
      */
     private function handler(array $allowedOrigins = ['*']): Handler
     {
-        $lambda = new LambdaClient(
+        return new Handler($this->store, $this->connections, app(Publisher::class), $this->signature, $this->lambda(), $allowedOrigins);
+    }
+
+    private function lambda(): LambdaClient
+    {
+        return new LambdaClient(
             ['region' => 'eu-west-3', 'accessKeyId' => 'test', 'accessKeySecret' => 'test'],
             null,
             new MockHttpClient(function (string $method, string $url, array $options) {
@@ -283,8 +379,6 @@ class HandlerTest extends TestCase
                 return new MockResponse('', ['http_code' => 202]);
             }),
         );
-
-        return new Handler($this->store, $this->connections, app(Publisher::class), $this->signature, $lambda, $allowedOrigins);
     }
 
     /**

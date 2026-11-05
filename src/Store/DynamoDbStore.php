@@ -44,6 +44,8 @@ class DynamoDbStore implements SubscriptionStore
     {
         return $this->subscriptions($this->client->query([
             'TableName' => $this->table,
+            // Who listens must include who has just subscribed
+            'ConsistentRead' => true,
             'KeyConditionExpression' => '#channel = :channel',
             // DynamoDB deletes expired items up to days later
             'FilterExpression' => 'expiresAt > :now',

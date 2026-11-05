@@ -112,6 +112,19 @@ class BroadcasterTest extends TestCase
     }
 
     #[Test]
+    public function the_size_limit_applies_to_the_encoded_message(): void
+    {
+        // 100 KB of JSON, about 140 KB in the message sent to API Gateway where quotes are escaped
+        $payload = array_fill(0, 10000, ['a' => 'b']);
+        $this->assertLessThan(128 * 1024, strlen(json_encode($payload, JSON_THROW_ON_ERROR)));
+
+        $this->expectException(BroadcastException::class);
+        $this->expectExceptionMessage('too large');
+
+        $this->broadcaster->broadcast([new Channel('news')], 'shipped', ['items' => $payload]);
+    }
+
+    #[Test]
     public function it_refuses_encrypted_channels(): void
     {
         $this->expectException(BroadcastException::class);

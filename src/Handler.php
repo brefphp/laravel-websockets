@@ -161,12 +161,13 @@ class Handler extends WebsocketHandler
 
     private function joinPresenceChannel(string $connectionId, string $channel, string $channelData): void
     {
+        // Write before reading: of two members joining at the same time, at least one sees the other and tells it
+        $this->store->subscribe($channel, $connectionId, $channelData);
+
         $others = array_values(array_filter(
             $this->store->subscribers($channel),
             fn(Subscription $subscription) => $subscription->connectionId !== $connectionId,
         ));
-
-        $this->store->subscribe($channel, $connectionId, $channelData);
 
         $members = $this->members($others);
         $me = $this->decodeMember($channelData);

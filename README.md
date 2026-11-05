@@ -192,7 +192,7 @@ One server is a single point of failure: clients reconnect by themselves, but ev
 
 ## Limits
 
-- Events over 127 KB throw a `BroadcastException`: API Gateway refuses them.
+- Events over 128 KB throw a `BroadcastException`: API Gateway refuses them. The size is measured once encoded, where quotes count twice, so a JSON payload can reach the limit at about 100 KB.
 - Events are billed per 32 KB: a 33 KB event counts as two messages per connection.
 - [Encrypted private channels](https://laravel.com/docs/broadcasting#encrypted-private-channels) are not supported.
 - API Gateway closes connections after 2 hours: `pusher-js` reconnects and subscribes again by itself. Events sent during those few hundred milliseconds are lost.

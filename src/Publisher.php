@@ -6,12 +6,16 @@ namespace Bref\LaravelWebsockets;
 
 use Bref\LaravelWebsockets\Store\Subscription;
 use Bref\LaravelWebsockets\Store\SubscriptionStore;
+use Illuminate\Broadcasting\BroadcastException;
 
 /**
  * Sends a Pusher protocol event to the subscribers of a channel.
  */
 class Publisher
 {
+    // API Gateway refuses larger messages
+    private const MAX_MESSAGE_BYTES = 128 * 1024;
+
     public function __construct(
         private readonly SubscriptionStore $store,
         private readonly Connections $connections,
@@ -35,7 +39,12 @@ class Publisher
             }
         }
 
+        // The data of an event is a JSON string inside this JSON: its quotes are escaped, and count twice
         $message = json_encode(['event' => $event, 'channel' => $channel, 'data' => $data], JSON_THROW_ON_ERROR);
+
+        if (strlen($message) > self::MAX_MESSAGE_BYTES) {
+            throw new BroadcastException(sprintf('The "%s" event is too large for API Gateway: %d bytes.', $event, strlen($message)));
+        }
 
         // $disconnect is not guaranteed: this is what removes the connections it missed
         foreach ($this->connections->send($connectionIds, $message) as $goneConnectionId) {
