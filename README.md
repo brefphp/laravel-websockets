@@ -126,35 +126,41 @@ resources:
 
 ### 4. Connect Echo
 
-Deploying displays the URL of the API, like `wss://abc123.execute-api.eu-west-3.amazonaws.com/prod`. Give its host and stage to your frontend:
+Each environment has its own WebSocket API, so give its address to the frontend at runtime, in your layout:
 
-```ini
-VITE_WEBSOCKET_HOST=abc123.execute-api.eu-west-3.amazonaws.com
-VITE_WEBSOCKET_STAGE=prod
+```blade
+@if (config('bref-websockets.api_id'))
+    <meta name="websocket-host" content="{{ config('bref-websockets.api_id') }}.execute-api.{{ config('bref-websockets.region') }}.amazonaws.com">
+    <meta name="websocket-stage" content="{{ config('bref-websockets.stage') }}">
+@endif
 ```
 
 ```js
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 
-window.Pusher = Pusher;
+const host = document.querySelector('meta[name="websocket-host"]')?.content;
+const stage = document.querySelector('meta[name="websocket-stage"]')?.content;
 
-window.Echo = new Echo({
-    broadcaster: 'reverb',
-    key: 'bref',
-    wsHost: import.meta.env.VITE_WEBSOCKET_HOST,
-    // The trailing "?" is required, it keeps the rest of the URL out of the path
-    wsPath: `/${import.meta.env.VITE_WEBSOCKET_STAGE}?`,
-    wsPort: 80,
-    wssPort: 443,
-    forceTLS: true,
-    enabledTransports: ['ws', 'wss'],
-    // Ping every 9 minutes instead of 2: each ping costs a Lambda invocation and 2 messages
-    activityTimeout: 540000,
-});
+if (host) {
+    window.Pusher = Pusher;
+
+    window.Echo = new Echo({
+        broadcaster: 'reverb',
+        key: 'bref', // Any value
+        wsHost: host,
+        wsPath: `/${stage}?`, // The trailing "?" is required
+        wsPort: 80,
+        wssPort: 443,
+        forceTLS: true,
+        enabledTransports: ['ws', 'wss'],
+        // Ping every 9 minutes instead of 2: each ping costs a Lambda invocation and 2 messages
+        activityTimeout: 540000,
+    });
+}
 ```
 
-`key` can be any value. From there, follow [the Laravel documentation](https://laravel.com/docs/broadcasting).
+From there, follow [the Laravel documentation](https://laravel.com/docs/broadcasting).
 
 ### Restrict origins
 
@@ -168,7 +174,7 @@ provider:
 
 ### Local development
 
-The `api-gateway` driver needs AWS. Set `BROADCAST_CONNECTION=log` in your local `.env`.
+The `api-gateway` driver needs AWS. Set `BROADCAST_CONNECTION=log` in your local `.env`: events are written to the logs, and Echo does not connect.
 
 ## API Gateway or a small Reverb server
 
