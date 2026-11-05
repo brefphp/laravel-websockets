@@ -4,6 +4,12 @@ WebSockets for Laravel on AWS Lambda, with [Bref](https://bref.sh) and API Gatew
 
 No server to run: API Gateway holds the connections, Lambda runs on events. Laravel's broadcasting works as documented: `ShouldBroadcast` events, `routes/channels.php`, and Laravel Echo with `pusher-js`, including private channels, presence channels and client events (whispers).
 
+## Why?
+
+Laravel's WebSocket server, [Reverb](https://laravel.com/docs/reverb), is a long-running process: it cannot run on Lambda. The alternatives are a server to operate, or a third-party service like Pusher, billed per plan even when nothing happens.
+
+API Gateway WebSockets are serverless, but they do not speak the protocol of Laravel Echo. This package implements that protocol on API Gateway, so you keep Laravel's documented API and pay only for what you use.
+
 ## Installation
 
 ```bash
