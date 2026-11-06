@@ -8,7 +8,8 @@ use AsyncAws\DynamoDb\DynamoDbClient;
 use AsyncAws\DynamoDb\Result\QueryOutput;
 
 /**
- * One item per channel and connection, a `by-connection` index, and DynamoDB's TTL on `expiresAt`.
+ * The table of Lift's `database/dynamodb-single-table` construct, which imposes the attribute names:
+ * one item per channel (`PK`) and connection (`SK`), an index by connection (`GSI-1`), and DynamoDB's TTL.
  */
 class DynamoDbStore implements SubscriptionStore
 {
@@ -20,9 +21,11 @@ class DynamoDbStore implements SubscriptionStore
     public function subscribe(string $channel, string $connectionId, ?string $member = null): void
     {
         $item = [
-            'channel' => ['S' => $channel],
-            'connectionId' => ['S' => $connectionId],
-            'expiresAt' => ['N' => (string) (time() + self::TTL_SECONDS)],
+            'PK' => ['S' => $channel],
+            'SK' => ['S' => $connectionId],
+            'GSI-1-PK' => ['S' => $connectionId],
+            'GSI-1-SK' => ['S' => $channel],
+            'TimeToLive' => ['N' => (string) (time() + self::TTL_SECONDS)],
         ];
 
         if ($member !== null) {
@@ -36,7 +39,7 @@ class DynamoDbStore implements SubscriptionStore
     {
         $this->client->deleteItem([
             'TableName' => $this->table,
-            'Key' => ['channel' => ['S' => $channel], 'connectionId' => ['S' => $connectionId]],
+            'Key' => ['PK' => ['S' => $channel], 'SK' => ['S' => $connectionId]],
         ])->resolve();
     }
 
@@ -46,10 +49,9 @@ class DynamoDbStore implements SubscriptionStore
             'TableName' => $this->table,
             // Who listens must include who has just subscribed
             'ConsistentRead' => true,
-            'KeyConditionExpression' => '#channel = :channel',
+            'KeyConditionExpression' => 'PK = :channel',
             // DynamoDB deletes expired items up to days later
-            'FilterExpression' => 'expiresAt > :now',
-            'ExpressionAttributeNames' => ['#channel' => 'channel'],
+            'FilterExpression' => 'TimeToLive > :now',
             'ExpressionAttributeValues' => [':channel' => ['S' => $channel], ':now' => ['N' => (string) time()]],
         ]));
     }
@@ -58,8 +60,9 @@ class DynamoDbStore implements SubscriptionStore
     {
         return $this->subscriptions($this->client->query([
             'TableName' => $this->table,
-            'IndexName' => 'by-connection',
-            'KeyConditionExpression' => 'connectionId = :id',
+            'IndexName' => 'GSI-1',
+            'KeyConditionExpression' => '#connection = :id',
+            'ExpressionAttributeNames' => ['#connection' => 'GSI-1-PK'],
             'ExpressionAttributeValues' => [':id' => ['S' => $connectionId]],
         ]));
     }
@@ -74,8 +77,8 @@ class DynamoDbStore implements SubscriptionStore
         // getItems() goes through every result page
         foreach ($result->getItems() as $item) {
             $subscriptions[] = new Subscription(
-                (string) $item['channel']->getS(),
-                (string) $item['connectionId']->getS(),
+                (string) $item['PK']->getS(),
+                (string) $item['SK']->getS(),
                 isset($item['member']) ? $item['member']->getS() : null,
             );
         }

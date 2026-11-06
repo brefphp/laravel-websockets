@@ -35,21 +35,26 @@ class DynamoDbStoreTest extends TestCase
             'accessKeySecret' => 'test',
         ]);
         $this->table = 'subscriptions-' . bin2hex(random_bytes(4));
-        // Same definition as in the README
+        // Same keys and index as Lift's `database/dynamodb-single-table` construct with `gsiCount: 1`
         $this->client->createTable([
             'TableName' => $this->table,
             'BillingMode' => 'PAY_PER_REQUEST',
             'AttributeDefinitions' => [
-                ['AttributeName' => 'channel', 'AttributeType' => 'S'],
-                ['AttributeName' => 'connectionId', 'AttributeType' => 'S'],
+                ['AttributeName' => 'PK', 'AttributeType' => 'S'],
+                ['AttributeName' => 'SK', 'AttributeType' => 'S'],
+                ['AttributeName' => 'GSI-1-PK', 'AttributeType' => 'S'],
+                ['AttributeName' => 'GSI-1-SK', 'AttributeType' => 'S'],
             ],
             'KeySchema' => [
-                ['AttributeName' => 'channel', 'KeyType' => 'HASH'],
-                ['AttributeName' => 'connectionId', 'KeyType' => 'RANGE'],
+                ['AttributeName' => 'PK', 'KeyType' => 'HASH'],
+                ['AttributeName' => 'SK', 'KeyType' => 'RANGE'],
             ],
             'GlobalSecondaryIndexes' => [[
-                'IndexName' => 'by-connection',
-                'KeySchema' => [['AttributeName' => 'connectionId', 'KeyType' => 'HASH']],
+                'IndexName' => 'GSI-1',
+                'KeySchema' => [
+                    ['AttributeName' => 'GSI-1-PK', 'KeyType' => 'HASH'],
+                    ['AttributeName' => 'GSI-1-SK', 'KeyType' => 'RANGE'],
+                ],
                 'Projection' => ['ProjectionType' => 'ALL'],
             ]],
         ])->resolve();
